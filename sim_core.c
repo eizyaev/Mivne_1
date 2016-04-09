@@ -3,6 +3,17 @@
 
 #include "sim_api.h"
 SIM_coreState Core;
+
+
+typedef struct pipestate
+{
+        SIM_cmd cmd;      /// The processed command in each pipe stage
+        int32_t src1Val;  /// Actual value of src1 (considering forwarding mux, etc.)
+        int32_t src2Val;  /// Actual value of src2 (considering forwarding mux, etc.)
+} pipestate;
+
+pipestate fetch, dec_cur. dec_next, exe_cur, exe_next, mem_cur, mem_next, wb_cur, wb_next; 
+
 uint32_t ticks; // the current clk tick
 
 void pipestage_fetch(void);
@@ -31,6 +42,7 @@ int SIM_CoreReset(void)
     for ( i = 0 ; i < SIM_REGFILE_SIZE ; i++)
         Core.regFile[i] = 0;
     
+
 
     return 0;
 }
@@ -67,6 +79,8 @@ void SIM_CoreGetState(SIM_coreState *curState)
 
 void pipestage_fetch(void)
 {
+    SIM_MemInstRead(Core.pc, &fetch.cmd);
+    pc += 4;
 }
 
 void pipestage_dec(void)
