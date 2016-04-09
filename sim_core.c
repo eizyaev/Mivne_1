@@ -4,7 +4,7 @@
 #include "sim_api.h"
 SIM_coreState Core;
 
-
+/*
 typedef struct pipestate
 {
         SIM_cmd cmd;      /// The processed command in each pipe stage
@@ -13,7 +13,7 @@ typedef struct pipestate
 } pipestate;
 
 pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next, mem_cur, mem_next, wb_cur, wb_next; 
-
+*/
 uint32_t ticks; // the current clk tick
 
 void pipestage_fetch(void);
@@ -28,8 +28,12 @@ int SIM_CoreReset(void)
 {
     int i;
     Core.pc = 0;
+    /* at clk = 0 do fetch*/
+    SIM_MemInstRead(Core.pc, &Core.pipeStageState[0].cmd);
+    Core.pipeStageState[0].src1Val = 0;
+    Core.pipeStageState[0].src2Val = 0;
 
-    for ( i = 0 ; i < SIM_PIPELINE_DEPTH ; i++)
+    for ( i = 1 ; i < SIM_PIPELINE_DEPTH ; i++)
     {
         Core.pipeStageState[i].cmd.opcode = 0; 
         Core.pipeStageState[i].cmd.src1 = 0; 
@@ -43,7 +47,7 @@ int SIM_CoreReset(void)
 
         Core.regFile[i] = 0;
     }        
-    fetch_cur.cmd = Core.pipeStageState[0].cmd;
+   /* fetch_cur.cmd = Core.pipeStageState[0].cmd;
     fetch_next.cmd = Core.pipeStageState[0].cmd;
     dec_cur.cmd = Core.pipeStageState[1].cmd;
     dec_next.cmd = Core.pipeStageState[1].cmd;
@@ -52,19 +56,19 @@ int SIM_CoreReset(void)
     mem_cur.cmd = Core.pipeStageState[3].cmd;
     mem_next.cmd = Core.pipeStageState[3].cmd;
     wb_cur.cmd = Core.pipeStageState[4].cmd;
-    wb_next.cmd = Core.pipeStageState[4].cmd;
+    wb_next.cmd = Core.pipeStageState[4].cmd;*/
 
     return 0;
 }
 
 void SIM_CoreClkTick(void)
 {
+UpdateCoreState();
 pipestage_fetch();
 pipestage_dec();
 pipestage_exe();
 pipestage_mem();
 pipestage_wb();
-UpdateCoreState();
 ++ticks;
 }
 
@@ -98,6 +102,7 @@ void pipestage_fetch(void)
 void pipestage_dec(void)
 {
     exe_next.cmd = dec_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
+    dec_curCore.regFile[dec_cur.cmd.src1]
     dec_cur = dec_next;
 }
 
@@ -137,13 +142,15 @@ void pipestage_wb(void)
     wb_cur = wb_next;
 }
 
+
 void UpdateCoreState(void)
-{// VERY GOOD, FORWARDING WILL BE IMPLEMENTED IN OTHER FUNCTIONS
-    Core.pipeStageState[0].cmd = fetch_cur.cmd;
+{
+  /*  Core.pipeStageState[0].cmd = fetch_cur.cmd;
     Core.pipeStageState[1].cmd = dec_cur.cmd;
     Core.pipeStageState[2].cmd = exe_cur.cmd;
     Core.pipeStageState[3].cmd = mem_cur.cmd;
     Core.pipeStageState[4].cmd = wb_cur.cmd;
-
+*/
 }
+
 
