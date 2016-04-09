@@ -13,8 +13,7 @@ void pipestage_wb(void);
 
 
 
-
-int SIM_CoreReset()
+int SIM_CoreReset(void)
 {
     int i;
     Core.pc = 0;
@@ -49,6 +48,20 @@ pipestage_wb();
 
 void SIM_CoreGetState(SIM_coreState *curState)
 {    
+	curState->pc = Core.pc;
+	for (int i=0;i<SIM_REGFILE_SIZE; ++i){
+		curState->regFile[i]=Core.regFile[i];
+	}
+	for (int i=0;i<SIM_PIPELINE_DEPTH;++i){
+		curState->pipeStageState[i].cmd.opcode = Core.pipeStageState[i].cmd.opcode;
+		curState->pipeStageState[i].cmd.src1 = Core.pipeStageState[i].cmd.src1;
+		curState->pipeStageState[i].cmd.src2 = Core.pipeStageState[i].cmd.src2;
+		curState->pipeStageState[i].cmd.isSrc2Imm = Core.pipeStageState[i].cmd.isSrc2Imm;
+		curState->pipeStageState[i].cmd.dst = Core.pipeStageState[i].cmd.dst;
+		curState->pipeStageState[i].src1Val = Core.pipeStageState[i].src1Val;
+		curState->pipeStageState[i].src2Val = Core.pipeStageState[i].src2Val;
+	}
+
 }
 
 
