@@ -1,0 +1,6 @@
+# Object files
+*.o
+
+#Executables
+sim_main
+sim_main.exe
