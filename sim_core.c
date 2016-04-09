@@ -12,7 +12,22 @@ typedef struct pipestate
         int32_t src2Val;  /// Actual value of src2 (considering forwarding mux, etc.)
 } pipestate;
 
-pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next, mem_cur, mem_next, wb_cur, wb_next; 
+typedef struct pipe_mem
+{
+        pipestate pipe;
+        int32_t alu_result;
+} pipe_mem;
+
+typedef struct pipe_wb
+{
+        pipestate pipe;
+        int32_t mem_load;
+} pipe_wb;
+
+pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next; 
+pipe_mem mem_cur, mem_next; // TODO: change reset, update functions
+pipe_wb wb_cur, wb_next; // TODO: change reset, update functions
+
 
 uint32_t ticks; // the current clk tick
 
@@ -48,10 +63,10 @@ int SIM_CoreReset(void)
         dec_next.cmd = Core.pipeStageState[1].cmd;
         exe_cur.cmd = Core.pipeStageState[2].cmd;
         exe_next.cmd = Core.pipeStageState[2].cmd;
-        mem_cur.cmd = Core.pipeStageState[3].cmd;
-        mem_next.cmd = Core.pipeStageState[3].cmd;
-        wb_cur.cmd = Core.pipeStageState[4].cmd;
-        wb_next.cmd = Core.pipeStageState[4].cmd;
+        mem_cur.pipe.cmd = Core.pipeStageState[3].cmd;
+        mem_next.pipe.cmd = Core.pipeStageState[3].cmd;
+        wb_cur.pipe.cmd = Core.pipeStageState[4].cmd;
+        wb_next.pipe.cmd = Core.pipeStageState[4].cmd;
 
     return 0;
 }
@@ -97,23 +112,35 @@ void pipestage_fetch(void)
 void pipestage_dec(void)
 {
     exe_next.cmd = dec_cur.cmd;
+    exe_next.src1Val = Core.regFile[dec_cur.cmd.src1]; 
+    exe_next.src2Val = dec_cur.cmd.src2;
+
     dec_cur = dec_next;
 }
 
 void pipestage_exe(void)
 {
-    mem_next.cmd = exe_cur.cmd;
+    mem_next.pipe = exe_cur;
+    mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
+
     exe_cur = exe_next;
 }
 
 void pipestage_mem(void)
 {
-    wb_next.cmd = mem_cur.cmd;
+    wb_next.pipe.cmd = mem_cur.pipe.cmd;
+    
+    if (mem_cur.pipe.cmd.opcode == 3) 
+        if(SIM_MemDataRead(mem_cur.alu_result, &wb_next.mem_load) == -1)
+            printf("\n############# stalled on load #############\n");
+        else
+            printf("\n############# didnt stalled ###############\n");
     mem_cur = mem_next;
 }
 
 void pipestage_wb(void)
 {
+    Core.regFile[wb_cur.pipe.cmd.dst];
     wb_cur = wb_next;
 }
 
@@ -122,8 +149,8 @@ void UpdateCoreState(void)
     Core.pipeStageState[0].cmd = fetch_cur.cmd;
     Core.pipeStageState[1].cmd = dec_cur.cmd;
     Core.pipeStageState[2].cmd = exe_cur.cmd;
-    Core.pipeStageState[3].cmd = mem_cur.cmd;
-    Core.pipeStageState[4].cmd = wb_cur.cmd;
+    Core.pipeStageState[3].cmd = mem_cur.pipe.cmd;
+    Core.pipeStageState[4].cmd = wb_cur.pipe.cmd;
 
 }
 
