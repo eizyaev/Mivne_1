@@ -12,7 +12,7 @@ typedef struct pipestate
         int32_t src2Val;  /// Actual value of src2 (considering forwarding mux, etc.)
 } pipestate;
 
-pipestate fetch, dec_cur. dec_next, exe_cur, exe_next, mem_cur, mem_next, wb_cur, wb_next; 
+pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next, mem_cur, mem_next, wb_cur, wb_next; 
 
 uint32_t ticks; // the current clk tick
 
@@ -21,7 +21,7 @@ void pipestage_dec(void);
 void pipestage_exe(void);
 void pipestage_mem(void);
 void pipestage_wb(void);
-
+void UpdateCoreState(void);
 
 
 int SIM_CoreReset(void)
@@ -41,8 +41,17 @@ int SIM_CoreReset(void)
     }
     for ( i = 0 ; i < SIM_REGFILE_SIZE ; i++)
         Core.regFile[i] = 0;
-    
-
+     
+        fetch_cur.cmd = Core.pipeStageState[0].cmd;
+        fetch_next.cmd = Core.pipeStageState[0].cmd;
+        dec_cur.cmd = Core.pipeStageState[1].cmd;
+        dec_next.cmd = Core.pipeStageState[1].cmd;
+        exe_cur.cmd = Core.pipeStageState[2].cmd;
+        exe_next.cmd = Core.pipeStageState[2].cmd;
+        mem_cur.cmd = Core.pipeStageState[3].cmd;
+        mem_next.cmd = Core.pipeStageState[3].cmd;
+        wb_cur.cmd = Core.pipeStageState[4].cmd;
+        wb_next.cmd = Core.pipeStageState[4].cmd;
 
     return 0;
 }
@@ -54,7 +63,7 @@ pipestage_dec();
 pipestage_exe();
 pipestage_mem();
 pipestage_wb();
-
+UpdateCoreState();
 ++ticks;
 }
 
@@ -79,23 +88,42 @@ void SIM_CoreGetState(SIM_coreState *curState)
 
 void pipestage_fetch(void)
 {
-    SIM_MemInstRead(Core.pc, &fetch.cmd);
-    pc += 4;
+    SIM_MemInstRead(Core.pc, &fetch_next.cmd);
+    dec_next.cmd = fetch_cur.cmd;
+    Core.pc += 4;
+    fetch_cur = fetch_next;
 }
 
 void pipestage_dec(void)
 {
+    exe_next.cmd = dec_cur.cmd;
+    dec_cur = dec_next;
 }
 
 void pipestage_exe(void)
 {
+    mem_next.cmd = exe_cur.cmd;
+    exe_cur = exe_next;
 }
 
 void pipestage_mem(void)
 {
+    wb_next.cmd = mem_cur.cmd;
+    mem_cur = mem_next;
 }
 
 void pipestage_wb(void)
 {
+    wb_cur = wb_next;
+}
+
+void UpdateCoreState(void)
+{
+    Core.pipeStageState[0].cmd = fetch_cur.cmd;
+    Core.pipeStageState[1].cmd = dec_cur.cmd;
+    Core.pipeStageState[2].cmd = exe_cur.cmd;
+    Core.pipeStageState[3].cmd = mem_cur.cmd;
+    Core.pipeStageState[4].cmd = wb_cur.cmd;
+
 }
 
