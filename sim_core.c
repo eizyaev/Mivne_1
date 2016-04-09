@@ -3,6 +3,15 @@
 
 #include "sim_api.h"
 SIM_coreState Core;
+uint32_t ticks; // the current clk tick
+
+void pipestage_fetch(void);
+void pipestage_dec(void);
+void pipestage_exe(void);
+void pipestage_mem(void);
+void pipestage_wb(void);
+
+
 
 
 int SIM_CoreReset()
@@ -29,8 +38,37 @@ int SIM_CoreReset()
 
 void SIM_CoreClkTick(void)
 {
+pipestage_fetch();
+pipestage_dec();
+pipestage_exe();
+pipestage_mem();
+pipestage_wb();
+
+++ticks;
 }
 
 void SIM_CoreGetState(SIM_coreState *curState)
 {    
 }
+
+
+void pipestage_fetch(void)
+{
+}
+
+void pipestage_dec(void)
+{
+}
+
+void pipestage_exe(void)
+{
+}
+
+void pipestage_mem(void)
+{
+}
+
+void pipestage_wb(void)
+{
+}
+
