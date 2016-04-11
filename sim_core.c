@@ -120,9 +120,35 @@ void pipestage_dec(void)
 
 void pipestage_exe(void)
 {
+<<<<<<< Updated upstream
     mem_next.pipe = exe_cur;
     mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
 
+=======
+    switch (exe_cur.cmd.opcode)
+    {
+    case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        break;
+    case 1:
+    	break;
+    case 2:
+        break;
+    case 3:
+            mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
+            mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
+    	break;
+    case 4:
+            mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
+            mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
+        break;
+    case 5:
+        break;
+    case 6:
+    	break;
+    case 7:
+        break;
+    }
+>>>>>>> Stashed changes
     exe_cur = exe_next;
 }
 
@@ -140,6 +166,26 @@ void pipestage_mem(void)
 
 void pipestage_wb(void)
 {
+    switch (exe_cur.cmd.opcode)
+    {
+    case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        break;
+    case 1:
+    	break;
+    case 2:
+        break;
+    case 3:
+    	break;
+    case 4:
+        break;
+    case 5:
+        break;
+    case 6:
+    	break;
+    case 7:
+        break;
+    }
+ 
     Core.regFile[wb_cur.pipe.cmd.dst];
     wb_cur = wb_next;
 }
