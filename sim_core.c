@@ -109,6 +109,25 @@ void pipestage_fetch(void)
     Core.pc += 4;
     SIM_MemInstRead(Core.pc, &fetch_next.cmd);
     dec_next.cmd = fetch_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
+    switch (fetch_cur.cmd.opcode)
+    {
+    case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        break;
+    case 1:
+    	break;
+    case 2:
+        break;
+    case 3:
+    	break;
+    case 4:
+        break;
+    case 5:
+        break;
+    case 6:
+    	break;
+    case 7:
+        break;
+    }
     fetch_cur = fetch_next;
 }
 
@@ -116,8 +135,26 @@ void pipestage_dec(void)
 {
     exe_next.cmd = dec_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
     exe_next.src1Val = Core.regFile[dec_cur.cmd.src1]; 
-    exe_next.src2Val = dec_cur.cmd.src2;
-
+    exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
+    switch (dec_cur.cmd.opcode)
+    {
+    case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        break;
+    case 1:
+    	break;
+    case 2:
+        break;
+    case 3:
+    	break;
+    case 4:
+        break;
+    case 5:
+        break;
+    case 6:
+    	break;
+    case 7:
+        break;
+    }
     dec_cur = dec_next;
 }
 
@@ -128,6 +165,7 @@ void pipestage_exe(void)
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         break;
     case 1:
+
     	break;
     case 2:
         break;
@@ -156,6 +194,25 @@ void pipestage_mem(void)
             printf("\n############# stalled on load #############\n");
         else
             printf("\n############# didnt stalled ###############\n");
+    switch (mem_cur.pipe.cmd.opcode)
+    {
+    case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        break;
+    case 1:
+    	break;
+    case 2:
+        break;
+    case 3:
+    	break;
+    case 4:
+        break;
+    case 5:
+        break;
+    case 6:
+    	break;
+    case 7:
+        break;
+    }
     mem_cur = mem_next;
 }
 
