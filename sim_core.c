@@ -21,6 +21,7 @@ typedef struct pipe_wb
 {
         pipestate pipe;
         int32_t mem_load;
+        int32_t alu_mem_result;
 } pipe_wb;
 
 pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next; 
@@ -57,9 +58,14 @@ int SIM_CoreReset(void)
         Core.pipeStageState[i].src1Val = 0;
         Core.pipeStageState[i].src2Val = 0;
     }
-
+    for(i=0;i<SIM_REGFILE_SIZE;++i){
         Core.regFile[i] = 0;
-     
+    	}
+    	Core.regFile[9] = 16;
+    	Core.regFile[1]=13;
+		Core.regFile[12]=11;
+		Core.regFile[4]=33;
+		Core.regFile[5]=20;
         fetch_cur.cmd = Core.pipeStageState[0].cmd;
         fetch_next.cmd = Core.pipeStageState[0].cmd;
         dec_cur.cmd = Core.pipeStageState[1].cmd;
@@ -88,10 +94,11 @@ UpdateCoreState();
 void SIM_CoreGetState(SIM_coreState *curState)
 {    
 	curState->pc = Core.pc;
-	for (int i=0;i<SIM_REGFILE_SIZE; ++i){
+	int i;
+	for (i=0;i<SIM_REGFILE_SIZE; ++i){
 		curState->regFile[i]=Core.regFile[i];
 	}
-	for (int i=0;i<SIM_PIPELINE_DEPTH;++i){
+	for (i=0;i<SIM_PIPELINE_DEPTH;++i){
 		curState->pipeStageState[i].cmd.opcode = Core.pipeStageState[i].cmd.opcode;
 		curState->pipeStageState[i].cmd.src1 = Core.pipeStageState[i].cmd.src1;
 		curState->pipeStageState[i].cmd.src2 = Core.pipeStageState[i].cmd.src2;
@@ -112,6 +119,7 @@ void pipestage_fetch(void)
     switch (fetch_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+
         break;
     case 1:
     	break;
@@ -134,15 +142,19 @@ void pipestage_fetch(void)
 void pipestage_dec(void)
 {
     exe_next.cmd = dec_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
-    exe_next.src1Val = Core.regFile[dec_cur.cmd.src1]; 
-    exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
     switch (dec_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        exe_next.src1Val = 0;
+        exe_next.src2Val = 0;
         break;
     case 1:
+        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
+        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
     	break;
     case 2:
+        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
+        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
         break;
     case 3:
     	break;
@@ -165,10 +177,20 @@ void pipestage_exe(void)
     switch (exe_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        mem_next.pipe.src1Val = 0;
+        mem_next.pipe.src2Val = 0;
         break;
     case 1:
+        mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
+        mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
+        mem_next.pipe.src1Val = exe_cur.src1Val;
+        mem_next.pipe.src2Val = exe_cur.src2Val;
     	break;
     case 2:
+        mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
+        mem_next.alu_result = exe_cur.src1Val - exe_cur.src2Val;
+        mem_next.pipe.src1Val = exe_cur.src1Val;
+        mem_next.pipe.src2Val = exe_cur.src2Val;
         break;
     case 3:
             mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
@@ -191,19 +213,22 @@ void pipestage_exe(void)
 void pipestage_mem(void)
 {
     wb_next.pipe.cmd = mem_cur.pipe.cmd;
-    
-    if (mem_cur.pipe.cmd.opcode == 3) 
-        if(SIM_MemDataRead(mem_cur.alu_result, &wb_next.mem_load) == -1)
-            printf("\n############# stalled on load #############\n");
-        else
-            printf("\n############# didnt stalled ###############\n");
+
     switch (mem_cur.pipe.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+        wb_next.pipe.src1Val = 0;
+        wb_next.pipe.src2Val = 0;
         break;
     case 1:
+    	wb_next.alu_mem_result=mem_cur.alu_result;
+        wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
+        wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
     	break;
     case 2:
+    	wb_next.alu_mem_result=mem_cur.alu_result;
+        wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
+        wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
         break;
     case 3:
     	break;
@@ -221,13 +246,23 @@ void pipestage_mem(void)
 
 void pipestage_wb(void)
 {
-    switch (exe_cur.cmd.opcode)
+    switch (wb_cur.pipe.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         break;
     case 1:
+    	Core.regFile[wb_cur.pipe.cmd.dst]=wb_cur.alu_mem_result;
+    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
+    		exe_cur.src1Val = wb_cur.alu_mem_result;
+    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)
+    		exe_cur.src2Val =wb_cur.alu_mem_result;
     	break;
     case 2:
+    	Core.regFile[wb_cur.pipe.cmd.dst]=wb_cur.alu_mem_result;
+    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
+    		exe_cur.src1Val = wb_cur.alu_mem_result;
+    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)
+    		exe_cur.src2Val =wb_cur.alu_mem_result;
         break;
     case 3:
     	break;
@@ -241,7 +276,6 @@ void pipestage_wb(void)
         break;
     }
  
-    Core.regFile[wb_cur.pipe.cmd.dst];
     wb_cur = wb_next;
 }
 
@@ -249,10 +283,20 @@ void pipestage_wb(void)
 void UpdateCoreState(void)
 {
     Core.pipeStageState[0].cmd = fetch_cur.cmd;
+    Core.pipeStageState[0].src1Val = fetch_cur.src1Val;
+    Core.pipeStageState[0].src2Val = fetch_cur.src2Val;
     Core.pipeStageState[1].cmd = dec_cur.cmd;
+    Core.pipeStageState[1].src1Val = dec_cur.src1Val;
+    Core.pipeStageState[1].src2Val = dec_cur.src2Val;
     Core.pipeStageState[2].cmd = exe_cur.cmd;
+    Core.pipeStageState[2].src1Val = exe_cur.src1Val;
+    Core.pipeStageState[2].src2Val = exe_cur.src2Val;
     Core.pipeStageState[3].cmd = mem_cur.pipe.cmd;
+    Core.pipeStageState[3].src1Val = mem_cur.pipe.src1Val;
+    Core.pipeStageState[3].src2Val = mem_cur.pipe.src2Val;
     Core.pipeStageState[4].cmd = wb_cur.pipe.cmd;
+    Core.pipeStageState[4].src1Val = wb_cur.pipe.src1Val;
+    Core.pipeStageState[4].src2Val = wb_cur.pipe.src2Val;
 
 }
 
