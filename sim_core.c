@@ -27,9 +27,8 @@ typedef struct pipe_wb
 pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next; 
 pipe_mem mem_cur, mem_next; // TODO: change reset, update functions
 pipe_wb wb_cur, wb_next; // TODO: change reset, update functions
-
-
-uint32_t ticks; // the current clk tick
+bool stalled = false;
+int st_cnt = 0;
 
 void pipestage_fetch(void);
 void pipestage_dec(void);
@@ -82,13 +81,20 @@ int SIM_CoreReset(void)
 
 void SIM_CoreClkTick(void)
 {
-pipestage_fetch();
-pipestage_dec();
-pipestage_exe();
-pipestage_mem();
-pipestage_wb();
+    if (!stalled)
+    {
+        pipestage_fetch();
+        pipestage_dec();
+        pipestage_exe();
+        pipestage_mem();
+        pipestage_wb();
+    }
+    else
+    {
+        pipestage_mem();
+        pipestage_wb();
+    }
 UpdateCoreState();
-++ticks;
 }
 
 void SIM_CoreGetState(SIM_coreState *curState)
@@ -136,7 +142,6 @@ void pipestage_fetch(void)
     case 7:
         break;
     }
-    fetch_cur = fetch_next;
 }
 
 void pipestage_dec(void)
@@ -157,6 +162,8 @@ void pipestage_dec(void)
         exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
         break;
     case 3:
+        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1]; 
+        exe_next.src2Val = dec_cur.cmd.src2;
     	break;
     case 4:
         break;
@@ -167,13 +174,12 @@ void pipestage_dec(void)
     case 7:
         break;
     }
-    dec_cur = dec_next;
 }
 
 void pipestage_exe(void)
 {
-    mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
 
+    mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
     switch (exe_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
@@ -193,11 +199,9 @@ void pipestage_exe(void)
         mem_next.pipe.src2Val = exe_cur.src2Val;
         break;
     case 3:
-            mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
-            mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
+            mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
     	break;
     case 4:
-            mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
             mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
         break;
     case 5:
@@ -207,13 +211,11 @@ void pipestage_exe(void)
     case 7:
         break;
     }
-    exe_cur = exe_next;
 }
 
 void pipestage_mem(void)
 {
     wb_next.pipe.cmd = mem_cur.pipe.cmd;
-
     switch (mem_cur.pipe.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
@@ -231,6 +233,19 @@ void pipestage_mem(void)
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
         break;
     case 3:
+        if(SIM_MemDataRead((uint32_t)mem_cur.alu_result, &wb_next.mem_load) == -1)
+        {
+            st_cnt++;
+            stalled = true;
+            printf("\n######################stalllllleddd!@#!@#!@ : #######################\n");
+        }
+        else
+        {
+            Core.pc += 4;
+            stalled = false;
+            st_cnt = 0;
+            Core.regFile[wb_next.pipe.cmd.dst] = wb_next.mem_load;
+        }
     	break;
     case 4:
         break;
@@ -241,12 +256,26 @@ void pipestage_mem(void)
     case 7:
         break;
     }
-    mem_cur = mem_next;
+        //printf("\n###################### adress : %x  #######################\n", mem_cur.alu_result);
+      //  printf("\n###################### mem_load adr : %d  #######################\n", &wb_next.mem_load);
+    //    printf("\n###################### loaded Value : %x  #######################\n", wb_next.mem_load);
+    if (!stalled)
+    {
+        fetch_cur = fetch_next;
+        dec_cur = dec_next;
+        exe_cur = exe_next;
+        mem_cur = mem_next;
+    }
+    if (st_cnt == 1)
+        Core.pc -= 4;
+
+
 }
 
 void pipestage_wb(void)
 {
     switch (wb_cur.pipe.cmd.opcode)
+    
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         break;
@@ -277,6 +306,16 @@ void pipestage_wb(void)
     }
  
     wb_cur = wb_next;
+    if (stalled == true)
+    {
+        wb_cur.pipe.cmd.opcode = CMD_NOP;
+        wb_cur.pipe.cmd.src1 = 0; 
+        wb_cur.pipe.cmd.src2 = 0;
+        wb_cur.pipe.cmd.isSrc2Imm = false; 
+        wb_cur.pipe.cmd.dst = 0;
+        wb_cur.pipe.src1Val = 0;
+        wb_cur.pipe.src2Val = 0;
+    }
 }
 
 
