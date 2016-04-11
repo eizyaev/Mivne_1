@@ -60,11 +60,11 @@ int SIM_CoreReset(void)
     for(i=0;i<SIM_REGFILE_SIZE;++i){
         Core.regFile[i] = 0;
     	}
-    	Core.regFile[9] = 16;
-    	Core.regFile[1]=13;
-		Core.regFile[12]=11;
-		Core.regFile[4]=33;
-		Core.regFile[5]=20;
+    	//Core.regFile[9] = 16;
+    	//Core.regFile[1]=13;
+		//Core.regFile[12]=11;
+		//Core.regFile[4]=33;
+		//Core.regFile[5]=20;
         fetch_cur.cmd = Core.pipeStageState[0].cmd;
         fetch_next.cmd = Core.pipeStageState[0].cmd;
         dec_cur.cmd = Core.pipeStageState[1].cmd;
