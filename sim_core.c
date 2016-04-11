@@ -76,12 +76,12 @@ int SIM_CoreReset(void)
 
 void SIM_CoreClkTick(void)
 {
-UpdateCoreState();
 pipestage_fetch();
 pipestage_dec();
 pipestage_exe();
 pipestage_mem();
 pipestage_wb();
+UpdateCoreState();
 ++ticks;
 }
 
@@ -106,9 +106,9 @@ void SIM_CoreGetState(SIM_coreState *curState)
 
 void pipestage_fetch(void)
 {
+    Core.pc += 4;
     SIM_MemInstRead(Core.pc, &fetch_next.cmd);
     dec_next.cmd = fetch_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
-    Core.pc += 4;
     fetch_cur = fetch_next;
 }
 
