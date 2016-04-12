@@ -125,7 +125,8 @@ void pipestage_fetch(void)
     switch (fetch_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
-
+        dec_next.src1Val = 0;
+        dec_next.src2Val = 0;
         break;
     case 1:
     	break;
@@ -226,11 +227,22 @@ void pipestage_mem(void)
     	wb_next.alu_mem_result=mem_cur.alu_result;
         wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
+        Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
+        //printf(" dec_cur %d  dst %d",dec_next.cmd.src1,wb_next.pipe.cmd.dst);
+    	if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
+    		dec_next.src1Val = mem_cur.alu_result;
+    	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
+    		dec_next.src2Val =mem_cur.alu_result;
     	break;
     case 2:
     	wb_next.alu_mem_result=mem_cur.alu_result;
         wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
+    	Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
+    	if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
+    		dec_next.src1Val = mem_cur.alu_result;
+    	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
+    		dec_next.src2Val =mem_cur.alu_result;
         break;
     case 3:
         if(SIM_MemDataRead((uint32_t)mem_cur.alu_result, &wb_next.mem_load) == -1)
@@ -283,12 +295,11 @@ void pipestage_wb(void)
     	Core.regFile[wb_cur.pipe.cmd.dst]=wb_cur.alu_mem_result;
     	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
     		exe_cur.src1Val = wb_cur.alu_mem_result;
-    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)
+    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)//src2 might be immediate equaling to register index
     		exe_cur.src2Val =wb_cur.alu_mem_result;
     	break;
     case 2:
-    	Core.regFile[wb_cur.pipe.cmd.dst]=wb_cur.alu_mem_result;
-    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
+    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)//src2 might be immediate equaling to register index
     		exe_cur.src1Val = wb_cur.alu_mem_result;
     	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)
     		exe_cur.src2Val =wb_cur.alu_mem_result;
