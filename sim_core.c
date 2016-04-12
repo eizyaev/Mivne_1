@@ -81,20 +81,17 @@ int SIM_CoreReset(void)
 
 void SIM_CoreClkTick(void)
 {
-    if (!stalled)
-    {
-        pipestage_fetch();
-        pipestage_dec();
-        pipestage_exe();
-        pipestage_mem();
-        pipestage_wb();
-    }
-    else
-    {
-        pipestage_mem();
-        pipestage_wb();
-    }
-UpdateCoreState();
+    pipestage_fetch();
+    pipestage_dec();
+    pipestage_exe();
+    pipestage_mem();
+    pipestage_wb();
+
+    if (stalled)
+        Core.pc -= 4;
+
+    UpdateCoreState();
+
 }
 
 void SIM_CoreGetState(SIM_coreState *curState)
@@ -175,7 +172,8 @@ void pipestage_dec(void)
     case 7:
         break;
     }
-}
+
+}       
 
 void pipestage_exe(void)
 {
@@ -186,6 +184,10 @@ void pipestage_exe(void)
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         mem_next.pipe.src1Val = 0;
         mem_next.pipe.src2Val = 0;
+        mem_next.pipe.cmd.src1 = 0;
+        mem_next.pipe.cmd.src2 = 0;
+        mem_next.pipe.cmd.isSrc2Imm = false;
+        mem_next.pipe.cmd.dst = 0;
         break;
     case 1:
         mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
@@ -203,7 +205,7 @@ void pipestage_exe(void)
             mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
     	break;
     case 4:
-            mem_next.alu_result = mem_cur.pipe.src1Val + mem_cur.pipe.src2Val;
+            mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
         break;
     case 5:
         break;
@@ -253,7 +255,6 @@ void pipestage_mem(void)
         }
         else
         {
-            Core.pc += 4;
             stalled = false;
             st_cnt = 0;
             Core.regFile[wb_next.pipe.cmd.dst] = wb_next.mem_load;
@@ -271,15 +272,29 @@ void pipestage_mem(void)
         //printf("\n###################### adress : %x  #######################\n", mem_cur.alu_result);
       //  printf("\n###################### mem_load adr : %d  #######################\n", &wb_next.mem_load);
     //    printf("\n###################### loaded Value : %x  #######################\n", wb_next.mem_load);
-    if (!stalled)
+    if (((exe_cur.cmd.dst == dec_cur.cmd.src1) || (exe_cur.cmd.dst == dec_cur.cmd.src2 && dec_cur.cmd.isSrc2Imm == false)) 
+          && (exe_cur.cmd.opcode != CMD_NOP) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled )
+    {
+        printf("\n###################### Data Hazard Detected!! : #######################\n");
+        Core.pc -= 4;
+        exe_next.cmd.opcode = CMD_NOP;
+        exe_next.cmd.src1 = 0;
+        exe_next.cmd.src2 = 0;
+        exe_next.cmd.isSrc2Imm = false;
+        exe_next.cmd.dst = 0;
+        exe_next.src1Val = 0;
+        exe_next.src2Val = 0;
+    }
+    else if(!stalled)
     {
         fetch_cur = fetch_next;
         dec_cur = dec_next;
+    }
+    if (!stalled)
+    {
         exe_cur = exe_next;
         mem_cur = mem_next;
     }
-    if (st_cnt == 1)
-        Core.pc -= 4;
 
 
 }
