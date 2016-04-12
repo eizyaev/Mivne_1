@@ -135,11 +135,17 @@ void pipestage_fetch(void)
         break;
     case CMD_LOAD:
         dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
-        dec_next.src2Val = fetch_cur.cmd.src2;
-    	break;
+        if (fetch_cur.cmd.isSrc2Imm)
+            dec_next.src2Val = fetch_cur.cmd.src2;
+        else
+            dec_next.src2Val = Core.regFile[fetch_cur.cmd.src2];
+        break;
     case CMD_STORE:
-        dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
-        dec_next.src2Val = fetch_cur.cmd.src2;
+        dec_next.src1Val = Core.regFile[fetch_cur.cmd.dst];
+        if (fetch_cur.cmd.isSrc2Imm)
+            dec_next.src2Val = fetch_cur.cmd.src2;
+        else
+            dec_next.src2Val = Core.regFile[fetch_cur.cmd.src2];
         break;
     case CMD_BR:
         break;
@@ -165,7 +171,7 @@ void pipestage_dec(void)
         break;
     case CMD_LOAD:
     	break;
-    case 4:
+    case CMD_STORE:
         break;
     case 5:
         break;
@@ -248,7 +254,7 @@ void pipestage_mem(void)
     	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
     		dec_next.src2Val =mem_cur.alu_result;
         break;
-    case 3:
+    case CMD_LOAD:
         if(SIM_MemDataRead((uint32_t)mem_cur.alu_result, &wb_next.mem_load) == -1)
         {
             st_cnt++;
@@ -264,11 +270,14 @@ void pipestage_mem(void)
     		    exe_next.src1Val = wb_next.mem_load;
     	    if((exe_next.cmd.src2 == wb_next.pipe.cmd.dst) && (exe_next.cmd.isSrc2Imm == false))
     		    exe_next.src2Val = wb_next.mem_load;
+    	    if ((exe_next.cmd.dst == wb_next.pipe.cmd.dst) && (exe_next.cmd.opcode == CMD_STORE))
+    		    exe_next.src1Val = wb_next.mem_load;
         }
         wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
     	break;
-    case 4:
+    case CMD_STORE:
+            SIM_MemDataWrite((uint32_t)mem_cur.alu_result, Core.regFile[mem_cur.pipe.cmd.src1]);
         break;
     case 5:
         break;
@@ -280,7 +289,8 @@ void pipestage_mem(void)
         //printf("\n###################### adress : %x  #######################\n", mem_cur.alu_result);
       //  printf("\n###################### mem_load adr : %d  #######################\n", &wb_next.mem_load);
     //    printf("\n###################### loaded Value : %x  #######################\n", wb_next.mem_load);
-    if (((exe_cur.cmd.dst == dec_cur.cmd.src1) || (exe_cur.cmd.dst == dec_cur.cmd.src2 && dec_cur.cmd.isSrc2Imm == false)) 
+    if (((exe_cur.cmd.dst == dec_cur.cmd.src1) || (exe_cur.cmd.dst == dec_cur.cmd.src2 && dec_cur.cmd.isSrc2Imm == false)
+         || ((exe_cur.cmd.dst == dec_cur.cmd.dst) && dec_cur.cmd.opcode == CMD_STORE)) 
           && (exe_cur.cmd.opcode == CMD_LOAD) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled )
     {
         printf("\n###################### Data Hazard Detected!! : #######################\n");
