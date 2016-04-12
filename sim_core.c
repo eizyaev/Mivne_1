@@ -121,30 +121,38 @@ void pipestage_fetch(void)
     dec_next.cmd = fetch_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
     switch (fetch_cur.cmd.opcode)
     {
-    case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
+    case CMD_NOP: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         dec_next.src1Val = 0;
         dec_next.src2Val = 0;
         break;
-    case 1:
+    case CMD_ADD:
+        dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
+        dec_next.src2Val = Core.regFile[fetch_cur.cmd.src2];
     	break;
-    case 2:
+    case CMD_SUB:
+        dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
+        dec_next.src2Val = Core.regFile[fetch_cur.cmd.src2];
         break;
-    case 3:
+    case CMD_LOAD:
+        dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
+        dec_next.src2Val = fetch_cur.cmd.src2;
     	break;
-    case 4:
+    case CMD_STORE:
+        dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
+        dec_next.src2Val = fetch_cur.cmd.src2;
         break;
-    case 5:
+    case CMD_BR:
         break;
-    case 6:
+    case CMD_BREQ:
     	break;
-    case 7:
+    case CMD_BRNEQ:
         break;
     }
 }
 
 void pipestage_dec(void)
 {
-    exe_next.cmd = dec_cur.cmd;// TODO FORWARDING / BRANCH HAZARD
+    exe_next = dec_cur;// TODO FORWARDING / BRANCH HAZARD
     switch (dec_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
@@ -152,16 +160,10 @@ void pipestage_dec(void)
         exe_next.src2Val = 0;
         break;
     case 1:
-        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
-        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
     	break;
     case 2:
-        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
-        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
         break;
-    case 3:
-        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1]; 
-        exe_next.src2Val = dec_cur.cmd.src2;
+    case CMD_LOAD:
     	break;
     case 4:
         break;
@@ -258,7 +260,13 @@ void pipestage_mem(void)
             stalled = false;
             st_cnt = 0;
             Core.regFile[wb_next.pipe.cmd.dst] = wb_next.mem_load;
+    	    if (exe_next.cmd.src1 == wb_next.pipe.cmd.dst)
+    		    exe_next.src1Val = wb_next.mem_load;
+    	    if((exe_next.cmd.src2 == wb_next.pipe.cmd.dst) && (exe_next.cmd.isSrc2Imm == false))
+    		    exe_next.src2Val = wb_next.mem_load;
         }
+        wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
+        wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
     	break;
     case 4:
         break;
@@ -273,7 +281,7 @@ void pipestage_mem(void)
       //  printf("\n###################### mem_load adr : %d  #######################\n", &wb_next.mem_load);
     //    printf("\n###################### loaded Value : %x  #######################\n", wb_next.mem_load);
     if (((exe_cur.cmd.dst == dec_cur.cmd.src1) || (exe_cur.cmd.dst == dec_cur.cmd.src2 && dec_cur.cmd.isSrc2Imm == false)) 
-          && (exe_cur.cmd.opcode != CMD_NOP) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled )
+          && (exe_cur.cmd.opcode == CMD_LOAD) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled )
     {
         printf("\n###################### Data Hazard Detected!! : #######################\n");
         Core.pc -= 4;
