@@ -28,6 +28,7 @@ pipestate fetch_cur, fetch_next, dec_cur, dec_next, exe_cur, exe_next;
 pipe_mem mem_cur, mem_next; // TODO: change reset, update functions
 pipe_wb wb_cur, wb_next; // TODO: change reset, update functions
 bool stalled = false;
+bool branched = false;
 int st_cnt = 0;
 
 void pipestage_fetch(void);
@@ -83,6 +84,7 @@ int SIM_CoreReset(void)
 
 void SIM_CoreClkTick(void)
 {
+    branched = false;
     pipestage_fetch();
     pipestage_dec();
     pipestage_exe();
@@ -283,17 +285,17 @@ void pipestage_mem(void)
     	    if (exe_next.cmd.src1 == wb_next.pipe.cmd.dst)
             {
     		    exe_next.src1Val = wb_next.mem_load;
-    		    dec_cur.src1Val = wb_next.mem_load;
+                   dec_cur.src1Val = wb_next.mem_load;
             }
     	    if((exe_next.cmd.src2 == wb_next.pipe.cmd.dst) && (exe_next.cmd.isSrc2Imm == false))
             {
     		    exe_next.src2Val = wb_next.mem_load;
-    		    dec_cur.src2Val = wb_next.mem_load;
+                   dec_cur.src2Val = wb_next.mem_load;
             }
     	    if ((exe_next.cmd.dst == wb_next.pipe.cmd.dst) && (exe_next.cmd.opcode == CMD_STORE))
             {
     		    exe_next.src1Val = wb_next.mem_load;
-    		    dec_cur.src1Val = wb_next.mem_load;
+                   dec_cur.src1Val = wb_next.mem_load;
             }
 
         }
@@ -302,6 +304,7 @@ void pipestage_mem(void)
             SIM_MemDataWrite((uint32_t)mem_cur.alu_result, Core.regFile[mem_cur.pipe.cmd.src1]);
         break;
     case 5:
+        branched = true;
 		Core.pc=Core.pc+ Core.regFile[mem_cur.pipe.cmd.dst]-12;
 		SIM_MemInstRead(Core.pc, &fetch_next.cmd);
 		fetch_next.src1Val=0;
@@ -330,6 +333,7 @@ void pipestage_mem(void)
     	break;
     case 6:
     	if (mem_cur.alu_result==0){
+            branched = true;
 			Core.pc=Core.pc+ Core.regFile[mem_cur.pipe.cmd.dst]-12;
 			SIM_MemInstRead(Core.pc, &fetch_next.cmd);
 			fetch_next.src1Val=0;
@@ -359,6 +363,7 @@ void pipestage_mem(void)
     	break;
     case 7:
     	if (mem_cur.alu_result!=0){
+            branched = true;
 			Core.pc=Core.pc+ Core.regFile[mem_cur.pipe.cmd.dst]-12;
 			SIM_MemInstRead(Core.pc, &fetch_next.cmd);
 			fetch_next.src1Val=0;
@@ -392,19 +397,24 @@ void pipestage_mem(void)
     //    printf("\n###################### loaded Value : %x  #######################\n", wb_next.mem_load);
     if (((exe_cur.cmd.dst == dec_cur.cmd.src1) || (exe_cur.cmd.dst == dec_cur.cmd.src2 && dec_cur.cmd.isSrc2Imm == false)
          || ((exe_cur.cmd.dst == dec_cur.cmd.dst) && dec_cur.cmd.opcode == CMD_STORE)) 
-          && (exe_cur.cmd.opcode == CMD_LOAD) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled )
+          && (exe_cur.cmd.opcode == CMD_LOAD) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled && !branched )
     {
         printf("\n###################### Data Hazard Detected!! : #######################\n");
-        Core.pc -= 4;
+            Core.pc -= 4;
         exe_next.cmd.opcode = CMD_NOP;
         exe_next.cmd.src1 = 0;
         exe_next.cmd.src2 = 0;
         exe_next.cmd.isSrc2Imm = false;
-exe_next.cmd.dst = 0;
+        exe_next.cmd.dst = 0;
         exe_next.src1Val = 0;
         exe_next.src2Val = 0;
     }
     else if(!stalled)
+    {
+        fetch_cur = fetch_next;
+        dec_cur = dec_next;
+    }
+    if(!stalled && branched)
     {
         fetch_cur = fetch_next;
         dec_cur = dec_next;
@@ -420,7 +430,6 @@ exe_next.cmd.dst = 0;
 
 void pipestage_wb(void)
 {
-
     switch (wb_cur.pipe.cmd.opcode)
     
     {
