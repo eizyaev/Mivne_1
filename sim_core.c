@@ -145,7 +145,7 @@ void pipestage_fetch(void)
             dec_next.src2Val = Core.regFile[fetch_cur.cmd.src2];
         break;
     case CMD_STORE:
-        dec_next.src1Val = Core.regFile[fetch_cur.cmd.dst];
+        dec_next.src1Val = Core.regFile[fetch_cur.cmd.src1];
         if (fetch_cur.cmd.isSrc2Imm)
             dec_next.src2Val = fetch_cur.cmd.src2;
         else
@@ -226,7 +226,7 @@ void pipestage_exe(void)
 
     	break;
     case 4:
-            mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
+            mem_next.alu_result = exe_cur.cmd.dst + exe_cur.src2Val;
         break;
     case 5:
         mem_next.pipe.src1Val = 0;
@@ -294,8 +294,8 @@ void pipestage_mem(void)
             }
     	    if ((exe_next.cmd.dst == wb_next.pipe.cmd.dst) && (exe_next.cmd.opcode == CMD_STORE))
             {
-    		    exe_next.src1Val = wb_next.mem_load;
-                   dec_cur.src1Val = wb_next.mem_load;
+    		    exe_next.cmd.dst = wb_next.mem_load;
+                   dec_cur.cmd.dst = wb_next.mem_load;
             }
 
         }
