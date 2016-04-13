@@ -61,9 +61,11 @@ int SIM_CoreReset(void)
         Core.regFile[i] = 0;
     	}
     	//Core.regFile[9] = 16;
-    	//Core.regFile[1]=13;
-		//Core.regFile[12]=11;
-		//Core.regFile[4]=33;
+    //	Core.regFile[16]=-8;
+    	//Core.regFile[1]=1;
+	//	Core.regFile[11]=11;
+		//Core.regFile[29]=33;
+
 		//Core.regFile[5]=20;
         fetch_cur.cmd = Core.pipeStageState[0].cmd;
         fetch_next.cmd = Core.pipeStageState[0].cmd;
@@ -148,10 +150,17 @@ void pipestage_fetch(void)
             dec_next.src2Val = Core.regFile[fetch_cur.cmd.src2];
         break;
     case CMD_BR:
+        dec_next.src1Val = 0;
+        dec_next.src2Val = 0;
         break;
-    case CMD_BREQ:
+    case 6:
+    	dec_next.src1Val=Core.regFile[fetch_cur.cmd.src1];
+    	dec_next.src2Val=Core.regFile[fetch_cur.cmd.src2];
     	break;
-    case CMD_BRNEQ:
+
+    case 7:
+    	dec_next.src1Val=Core.regFile[fetch_cur.cmd.src1];
+    	dec_next.src2Val=Core.regFile[fetch_cur.cmd.src2];
         break;
     }
 }
@@ -174,10 +183,16 @@ void pipestage_dec(void)
     case CMD_STORE:
         break;
     case 5:
+    	exe_next.src1Val = 0;
+    	exe_next.src2Val = 0;
         break;
     case 6:
+        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
+        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
     	break;
     case 7:
+        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
+        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
         break;
     }
 
@@ -202,24 +217,44 @@ void pipestage_exe(void)
         mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
         mem_next.pipe.src1Val = exe_cur.src1Val;
         mem_next.pipe.src2Val = exe_cur.src2Val;
+    	if (exe_next.cmd.src1==exe_cur.cmd.dst)
+    		exe_next.src1Val = mem_next.alu_result;
+    	if(exe_next.cmd.src2==exe_cur.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    		exe_next.src2Val =mem_next.alu_result;
     	break;
     case 2:
         mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
         mem_next.alu_result = exe_cur.src1Val - exe_cur.src2Val;
         mem_next.pipe.src1Val = exe_cur.src1Val;
         mem_next.pipe.src2Val = exe_cur.src2Val;
+    	if (exe_next.cmd.src1==exe_cur.cmd.dst)
+    		exe_next.src1Val = mem_next.alu_result;
+    	if(exe_next.cmd.src2==exe_cur.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    		exe_next.src2Val =mem_next.alu_result;
         break;
     case 3:
+
             mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
+
     	break;
     case 4:
             mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
         break;
     case 5:
+        mem_next.pipe.src1Val = 0;
+        mem_next.pipe.src2Val = 0;
         break;
     case 6:
+        mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
+        mem_next.alu_result = exe_cur.src1Val - exe_cur.src2Val;
+        mem_next.pipe.src1Val = exe_cur.src1Val;
+        mem_next.pipe.src2Val = exe_cur.src2Val;
     	break;
     case 7:
+        mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
+        mem_next.alu_result = exe_cur.src1Val - exe_cur.src2Val;
+        mem_next.pipe.src1Val = exe_cur.src1Val;
+        mem_next.pipe.src2Val = exe_cur.src2Val;
         break;
     }
 }
@@ -239,20 +274,21 @@ void pipestage_mem(void)
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
         Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
         //printf(" dec_cur %d  dst %d",dec_next.cmd.src1,wb_next.pipe.cmd.dst);
-    	if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
-    		dec_next.src1Val = mem_cur.alu_result;
-    	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
-    		dec_next.src2Val =mem_cur.alu_result;
+    	//if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
+    	//	dec_next.src1Val = mem_cur.alu_result;
+    //	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
+//    		dec_next.src2Val =mem_cur.alu_result;
+
     	break;
     case 2:
     	wb_next.alu_mem_result=mem_cur.alu_result;
         wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
     	Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
-    	if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
-    		dec_next.src1Val = mem_cur.alu_result;
-    	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
-    		dec_next.src2Val =mem_cur.alu_result;
+    	//if (exe_next.cmd.src1==mem_cur.pipe.cmd.dst)
+    	//	exe_next.src1Val = mem_cur.alu_result;
+    	//if(exe_next.cmd.src2==mem_cur.pipe.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    	//	exe_next.src2Val =mem_cur.alu_result;
         break;
     case CMD_LOAD:
         if(SIM_MemDataRead((uint32_t)mem_cur.alu_result, &wb_next.mem_load) == -1)
@@ -272,6 +308,7 @@ void pipestage_mem(void)
     		    exe_next.src2Val = wb_next.mem_load;
     	    if ((exe_next.cmd.dst == wb_next.pipe.cmd.dst) && (exe_next.cmd.opcode == CMD_STORE))
     		    exe_next.src1Val = wb_next.mem_load;
+
         }
         wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
         wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
@@ -280,10 +317,95 @@ void pipestage_mem(void)
             SIM_MemDataWrite((uint32_t)mem_cur.alu_result, Core.regFile[mem_cur.pipe.cmd.src1]);
         break;
     case 5:
-        break;
+		wb_next.pipe.src1Val = 0;
+		wb_next.pipe.src2Val = 0;
+		Core.pc=Core.pc+ Core.regFile[mem_cur.pipe.cmd.dst]-12;
+		SIM_MemInstRead(Core.pc, &fetch_next.cmd);
+		fetch_next.src1Val=0;
+		fetch_next.src2Val=0;
+		dec_next.cmd.dst=0;
+		dec_next.cmd.isSrc2Imm=false;
+		dec_next.cmd.opcode=0;
+		dec_next.cmd.src1=0;
+		dec_next.cmd.src2=0;
+		dec_next.src1Val=0;
+		dec_next.src2Val=0;
+		exe_next.cmd.dst=0;
+		exe_next.cmd.isSrc2Imm=false;
+		exe_next.cmd.opcode=0;
+		exe_next.cmd.src1=0;
+		exe_next.cmd.src2=0;
+		exe_next.src1Val=0;
+		exe_next.src2Val=0;
+		mem_next.pipe.cmd.dst=0;
+		mem_next.pipe.cmd.isSrc2Imm=false;
+		mem_next.pipe.cmd.opcode=0;
+		mem_next.pipe.cmd.src1=0;
+		mem_next.pipe.cmd.src2=0;
+		mem_next.pipe.src1Val=0;
+		mem_next.pipe.src2Val=0;
+    	break;
     case 6:
+    	if (mem_cur.alu_result==0){
+			wb_next.pipe.src1Val = 0;
+			wb_next.pipe.src2Val = 0;
+			Core.pc=Core.pc+ Core.regFile[mem_cur.pipe.cmd.dst]-12;
+			SIM_MemInstRead(Core.pc, &fetch_next.cmd);
+			fetch_next.src1Val=0;
+			fetch_next.src2Val=0;
+			dec_next.cmd.dst=0;
+			dec_next.cmd.isSrc2Imm=false;
+			dec_next.cmd.opcode=0;
+			dec_next.cmd.src1=0;
+			dec_next.cmd.src2=0;
+			dec_next.src1Val=0;
+			dec_next.src2Val=0;
+			exe_next.cmd.dst=0;
+			exe_next.cmd.isSrc2Imm=false;
+			exe_next.cmd.opcode=0;
+			exe_next.cmd.src1=0;
+			exe_next.cmd.src2=0;
+			exe_next.src1Val=0;
+			exe_next.src2Val=0;
+			mem_next.pipe.cmd.dst=0;
+			mem_next.pipe.cmd.isSrc2Imm=false;
+			mem_next.pipe.cmd.opcode=0;
+			mem_next.pipe.cmd.src1=0;
+			mem_next.pipe.cmd.src2=0;
+			mem_next.pipe.src1Val=0;
+			mem_next.pipe.src2Val=0;
+    	}
     	break;
     case 7:
+    	if (mem_cur.alu_result!=0){
+			wb_next.pipe.src1Val = 0;
+			wb_next.pipe.src2Val = 0;
+			Core.pc=Core.pc+ Core.regFile[mem_cur.pipe.cmd.dst]-12;
+			SIM_MemInstRead(Core.pc, &fetch_next.cmd);
+			fetch_next.src1Val=0;
+			fetch_next.src2Val=0;
+			dec_next.cmd.dst=0;
+			dec_next.cmd.isSrc2Imm=false;
+			dec_next.cmd.opcode=0;
+			dec_next.cmd.src1=0;
+			dec_next.cmd.src2=0;
+			dec_next.src1Val=0;
+			dec_next.src2Val=0;
+			exe_next.cmd.dst=0;
+			exe_next.cmd.isSrc2Imm=false;
+			exe_next.cmd.opcode=0;
+			exe_next.cmd.src1=0;
+			exe_next.cmd.src2=0;
+			exe_next.src1Val=0;
+			exe_next.src2Val=0;
+			mem_next.pipe.cmd.dst=0;
+			mem_next.pipe.cmd.isSrc2Imm=false;
+			mem_next.pipe.cmd.opcode=0;
+			mem_next.pipe.cmd.src1=0;
+			mem_next.pipe.cmd.src2=0;
+			mem_next.pipe.src1Val=0;
+			mem_next.pipe.src2Val=0;
+    	}
         break;
     }
         //printf("\n###################### adress : %x  #######################\n", mem_cur.alu_result);
@@ -299,7 +421,7 @@ void pipestage_mem(void)
         exe_next.cmd.src1 = 0;
         exe_next.cmd.src2 = 0;
         exe_next.cmd.isSrc2Imm = false;
-        exe_next.cmd.dst = 0;
+exe_next.cmd.dst = 0;
         exe_next.src1Val = 0;
         exe_next.src2Val = 0;
     }
@@ -328,11 +450,11 @@ void pipestage_wb(void)
     	Core.regFile[wb_cur.pipe.cmd.dst]=wb_cur.alu_mem_result;
     	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
     		exe_cur.src1Val = wb_cur.alu_mem_result;
-    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)//src2 might be immediate equaling to register index
+    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst && wb_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
     		exe_cur.src2Val =wb_cur.alu_mem_result;
     	break;
     case 2:
-    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)//src2 might be immediate equaling to register index
+    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst && wb_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
     		exe_cur.src1Val = wb_cur.alu_mem_result;
     	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)
     		exe_cur.src2Val =wb_cur.alu_mem_result;
@@ -342,7 +464,9 @@ void pipestage_wb(void)
     case 4:
         break;
     case 5:
-        break;
+
+
+    	break;
     case 6:
     	break;
     case 7:
