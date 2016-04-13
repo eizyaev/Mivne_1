@@ -171,8 +171,6 @@ void pipestage_dec(void)
     switch (dec_cur.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
-        exe_next.src1Val = 0;
-        exe_next.src2Val = 0;
         break;
     case 1:
     	break;
@@ -183,16 +181,10 @@ void pipestage_dec(void)
     case CMD_STORE:
         break;
     case 5:
-    	exe_next.src1Val = 0;
-    	exe_next.src2Val = 0;
         break;
     case 6:
-        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
-        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
     	break;
     case 7:
-        exe_next.src1Val = Core.regFile[dec_cur.cmd.src1];
-        exe_next.src2Val = Core.regFile[dec_cur.cmd.src2];
         break;
     }
 
@@ -303,11 +295,20 @@ void pipestage_mem(void)
             st_cnt = 0;
             Core.regFile[wb_next.pipe.cmd.dst] = wb_next.mem_load;
     	    if (exe_next.cmd.src1 == wb_next.pipe.cmd.dst)
+            {
     		    exe_next.src1Val = wb_next.mem_load;
+    		    dec_cur.src1Val = wb_next.mem_load;
+            }
     	    if((exe_next.cmd.src2 == wb_next.pipe.cmd.dst) && (exe_next.cmd.isSrc2Imm == false))
+            {
     		    exe_next.src2Val = wb_next.mem_load;
+    		    dec_cur.src2Val = wb_next.mem_load;
+            }
     	    if ((exe_next.cmd.dst == wb_next.pipe.cmd.dst) && (exe_next.cmd.opcode == CMD_STORE))
+            {
     		    exe_next.src1Val = wb_next.mem_load;
+    		    dec_cur.src1Val = wb_next.mem_load;
+            }
 
         }
         wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
