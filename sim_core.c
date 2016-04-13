@@ -29,7 +29,6 @@ pipe_mem mem_cur, mem_next; // TODO: change reset, update functions
 pipe_wb wb_cur, wb_next; // TODO: change reset, update functions
 bool stalled = false;
 bool branched = false;
-int st_cnt = 0;
 
 void pipestage_fetch(void);
 void pipestage_dec(void);
@@ -255,7 +254,6 @@ void pipestage_mem(void)
     case 1:
     	wb_next.alu_mem_result=mem_cur.alu_result;
         Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
-        //printf(" dec_cur %d  dst %d",dec_next.cmd.src1,wb_next.pipe.cmd.dst);
     	//if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
     	//	dec_next.src1Val = mem_cur.alu_result;
     //	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
@@ -272,15 +270,10 @@ void pipestage_mem(void)
         break;
     case CMD_LOAD:
         if(SIM_MemDataRead((uint32_t)mem_cur.alu_result, &wb_next.mem_load) == -1)
-        {
-            st_cnt++;
             stalled = true;
-            printf("\n######################stalllllleddd!@#!@#!@ : #######################\n");
-        }
         else
         {
             stalled = false;
-            st_cnt = 0;
             Core.regFile[wb_next.pipe.cmd.dst] = wb_next.mem_load;
     	    if (exe_next.cmd.src1 == wb_next.pipe.cmd.dst)
             {
@@ -392,15 +385,11 @@ void pipestage_mem(void)
     	}
         break;
     }
-        //printf("\n###################### adress : %x  #######################\n", mem_cur.alu_result);
-      //  printf("\n###################### mem_load adr : %d  #######################\n", &wb_next.mem_load);
-    //    printf("\n###################### loaded Value : %x  #######################\n", wb_next.mem_load);
     if (((exe_cur.cmd.dst == dec_cur.cmd.src1) || (exe_cur.cmd.dst == dec_cur.cmd.src2 && dec_cur.cmd.isSrc2Imm == false)
          || ((exe_cur.cmd.dst == dec_cur.cmd.dst) && dec_cur.cmd.opcode == CMD_STORE)) 
           && (exe_cur.cmd.opcode == CMD_LOAD) && (dec_cur.cmd.opcode != CMD_NOP) && !stalled && !branched )
     {
-        printf("\n###################### Data Hazard Detected!! : #######################\n");
-            Core.pc -= 4;
+        Core.pc -= 4;
         exe_next.cmd.opcode = CMD_NOP;
         exe_next.cmd.src1 = 0;
         exe_next.cmd.src2 = 0;
