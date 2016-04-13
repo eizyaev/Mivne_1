@@ -78,16 +78,19 @@ int main(int argc, char const *argv[])
                 simDurationStr);
         exit(4);
     }
-    printf("Running simulation for %d cycles", simDuration);
+    printf("Running simulation for %d cycles\n", simDuration);
+    printf("Simulation on cycle %d. The state is:\n", 1);
+    SIM_CoreGetState(&curState);
+    DumpCoreState(&curState);
     for (i = 0; i < simDuration; ++i)
     {
         SIM_CoreClkTick();
         SIM_MemClkTick();
+        printf("\n\nSimulation on cycle %d. The state is:\n", i+2);
+        SIM_CoreGetState(&curState);
+        DumpCoreState(&curState);
     }
 
-    printf("Simulation finished. Final state is:\n");
-    SIM_CoreGetState(&curState);
-    DumpCoreState(&curState);
 
     return 0;
 }
