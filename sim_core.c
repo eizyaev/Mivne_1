@@ -205,20 +205,14 @@ void pipestage_exe(void)
         mem_next.pipe.cmd.dst = 0;
         break;
     case 1:
-        mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
         mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
-        mem_next.pipe.src1Val = exe_cur.src1Val;
-        mem_next.pipe.src2Val = exe_cur.src2Val;
     	if (exe_next.cmd.src1==exe_cur.cmd.dst)
     		exe_next.src1Val = mem_next.alu_result;
     	if(exe_next.cmd.src2==exe_cur.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
     		exe_next.src2Val =mem_next.alu_result;
     	break;
     case 2:
-        mem_next.pipe = exe_cur; // TODO FORWARDING / BRANCH HAZARD
         mem_next.alu_result = exe_cur.src1Val - exe_cur.src2Val;
-        mem_next.pipe.src1Val = exe_cur.src1Val;
-        mem_next.pipe.src2Val = exe_cur.src2Val;
     	if (exe_next.cmd.src1==exe_cur.cmd.dst)
     		exe_next.src1Val = mem_next.alu_result;
     	if(exe_next.cmd.src2==exe_cur.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
@@ -253,7 +247,7 @@ void pipestage_exe(void)
 
 void pipestage_mem(void)
 {
-    wb_next.pipe.cmd = mem_cur.pipe.cmd;
+    wb_next.pipe = mem_cur.pipe;
     switch (mem_cur.pipe.cmd.opcode)
     {
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
@@ -262,8 +256,6 @@ void pipestage_mem(void)
         break;
     case 1:
     	wb_next.alu_mem_result=mem_cur.alu_result;
-        wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
-        wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
         Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
         //printf(" dec_cur %d  dst %d",dec_next.cmd.src1,wb_next.pipe.cmd.dst);
     	//if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
@@ -274,8 +266,6 @@ void pipestage_mem(void)
     	break;
     case 2:
     	wb_next.alu_mem_result=mem_cur.alu_result;
-        wb_next.pipe.src1Val = mem_cur.pipe.src1Val;
-        wb_next.pipe.src2Val = mem_cur.pipe.src2Val;
     	Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
     	//if (exe_next.cmd.src1==mem_cur.pipe.cmd.dst)
     	//	exe_next.src1Val = mem_cur.alu_result;
@@ -448,7 +438,6 @@ void pipestage_wb(void)
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         break;
     case 1:
-    	Core.regFile[wb_cur.pipe.cmd.dst]=wb_cur.alu_mem_result;
     	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
     		exe_cur.src1Val = wb_cur.alu_mem_result;
     	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst && wb_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
