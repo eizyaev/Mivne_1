@@ -209,15 +209,17 @@ void pipestage_exe(void)
         mem_next.alu_result = exe_cur.src1Val + exe_cur.src2Val;
     	if (exe_next.cmd.src1==exe_cur.cmd.dst)
     		exe_next.src1Val = mem_next.alu_result;
-    	if(exe_next.cmd.src2==exe_cur.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    	if(exe_next.cmd.src2==exe_cur.cmd.dst && exe_next.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
     		exe_next.src2Val =mem_next.alu_result;
+
     	break;
     case 2:
         mem_next.alu_result = exe_cur.src1Val - exe_cur.src2Val;
     	if (exe_next.cmd.src1==exe_cur.cmd.dst)
     		exe_next.src1Val = mem_next.alu_result;
-    	if(exe_next.cmd.src2==exe_cur.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    	if(exe_next.cmd.src2==exe_cur.cmd.dst && exe_next.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
     		exe_next.src2Val =mem_next.alu_result;
+
         break;
     case 3:
 
@@ -225,7 +227,7 @@ void pipestage_exe(void)
 
     	break;
     case 4:
-            mem_next.alu_result = exe_cur.cmd.dst + exe_cur.src2Val;
+            mem_next.alu_result = Core.regFile[exe_cur.cmd.dst] + exe_cur.src2Val;
         break;
     case 5:
         mem_next.pipe.src1Val = 0;
@@ -254,19 +256,27 @@ void pipestage_mem(void)
     case 1:
     	wb_next.alu_mem_result=mem_cur.alu_result;
         Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
-    	//if (dec_next.cmd.src1==wb_next.pipe.cmd.dst)
-    	//	dec_next.src1Val = mem_cur.alu_result;
-    //	if(dec_next.cmd.src2==wb_next.pipe.cmd.dst)//src2 might be immediate equaling to register index
-//    		dec_next.src2Val =mem_cur.alu_result;
+    	if (dec_next.cmd.src1==mem_cur.pipe.cmd.dst)
+    		dec_next.src1Val = mem_cur.alu_result;
+    	if(dec_next.cmd.src2==mem_cur.pipe.cmd.dst && exe_next.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    		dec_next.src2Val =mem_cur.alu_result;
+    	if (exe_next.cmd.src1==mem_cur.pipe.cmd.dst && ((exe_cur.cmd.dst !=exe_next.cmd.src1)||(exe_cur.cmd.opcode==CMD_LOAD||exe_cur.cmd.opcode==CMD_STORE)))
+    		exe_next.src1Val = mem_cur.alu_result;
+    	if(exe_next.cmd.src2==mem_cur.pipe.cmd.dst && exe_next.cmd.isSrc2Imm==false&& ((exe_cur.cmd.dst !=exe_next.cmd.src2)||(exe_cur.cmd.opcode==CMD_LOAD||exe_cur.cmd.opcode==CMD_STORE)))//src2 might be immediate equaling to register index
+    		exe_next.src2Val =mem_cur.alu_result;
 
     	break;
     case 2:
     	wb_next.alu_mem_result=mem_cur.alu_result;
     	Core.regFile[wb_next.pipe.cmd.dst] =mem_cur.alu_result;
-    	//if (exe_next.cmd.src1==mem_cur.pipe.cmd.dst)
-    	//	exe_next.src1Val = mem_cur.alu_result;
-    	//if(exe_next.cmd.src2==mem_cur.pipe.cmd.dst && mem_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
-    	//	exe_next.src2Val =mem_cur.alu_result;
+    	if (dec_next.cmd.src1==mem_cur.pipe.cmd.dst)
+    		dec_next.src1Val = mem_cur.alu_result;
+    	if(dec_next.cmd.src2==mem_cur.pipe.cmd.dst && dec_next.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    		dec_next.src2Val =mem_cur.alu_result;
+    	if (exe_next.cmd.src1==mem_cur.pipe.cmd.dst  && ((exe_cur.cmd.dst !=exe_next.cmd.src1)||(exe_cur.cmd.opcode==CMD_LOAD||exe_cur.cmd.opcode==CMD_STORE)))
+    		exe_next.src1Val = mem_cur.alu_result;
+    	if(exe_next.cmd.src2==mem_cur.pipe.cmd.dst && exe_next.cmd.isSrc2Imm==false&&((exe_cur.cmd.dst !=exe_next.cmd.src2)||(exe_cur.cmd.opcode==CMD_LOAD||exe_cur.cmd.opcode==CMD_STORE)))//src2 might be immediate equaling to register index
+    		exe_next.src2Val =mem_cur.alu_result;
         break;
     case CMD_LOAD:
         if(SIM_MemDataRead((uint32_t)mem_cur.alu_result, &wb_next.mem_load) == -1)
@@ -285,16 +295,21 @@ void pipestage_mem(void)
     		    exe_next.src2Val = wb_next.mem_load;
                    dec_cur.src2Val = wb_next.mem_load;
             }
-    	    if ((exe_next.cmd.dst == wb_next.pipe.cmd.dst) && (exe_next.cmd.opcode == CMD_STORE))
+    	    if (dec_next.cmd.src1 == wb_next.pipe.cmd.dst)
             {
-    		    exe_next.cmd.dst = wb_next.mem_load;
-                   dec_cur.cmd.dst = wb_next.mem_load;
+    		    dec_next.src1Val = wb_next.mem_load;
             }
+    	    if((dec_next.cmd.src2 == wb_next.pipe.cmd.dst) && (dec_next.cmd.isSrc2Imm == false))
+            {
+    		    dec_next.src2Val = wb_next.mem_load;
+            }
+
+
 
         }
     	break;
     case CMD_STORE:
-            SIM_MemDataWrite((uint32_t)mem_cur.alu_result, Core.regFile[mem_cur.pipe.cmd.src1]);
+            SIM_MemDataWrite((uint32_t)mem_cur.alu_result, mem_cur.pipe.src1Val);
         break;
     case 5:
         branched = true;
@@ -425,21 +440,28 @@ void pipestage_wb(void)
     case 0: // TODO {"NOP", "ADD", "SUB", "LOAD", "STORE", "BR", "BREQ", "BRNEQ" }
         break;
     case 1:
-    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst)
+    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst&&(mem_cur.pipe.cmd.dst!=wb_cur.pipe.cmd.dst))
     		exe_cur.src1Val = wb_cur.alu_mem_result;
-    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst && wb_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst && wb_cur.pipe.cmd.isSrc2Imm==false &&mem_cur.pipe.cmd.dst!=wb_cur.pipe.cmd.dst)//src2 might be immediate equaling to register index
     		exe_cur.src2Val =wb_cur.alu_mem_result;
     	break;
     case 2:
-    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst && wb_cur.pipe.cmd.isSrc2Imm==false)//src2 might be immediate equaling to register index
+    	if (exe_cur.cmd.src1==wb_cur.pipe.cmd.dst &&(mem_cur.pipe.cmd.dst!=wb_cur.pipe.cmd.dst))//src2 might be immediate equaling to register index
     		exe_cur.src1Val = wb_cur.alu_mem_result;
-    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst)
+    	if(exe_cur.cmd.src2==wb_cur.pipe.cmd.dst&& wb_cur.pipe.cmd.isSrc2Imm==false&&mem_cur.pipe.cmd.dst!=wb_cur.pipe.cmd.dst)
     		exe_cur.src2Val =wb_cur.alu_mem_result;
         break;
     case 3:
     	break;
     case 4:
-        break;
+    	if(wb_next.pipe.cmd.opcode==CMD_LOAD&&wb_next.pipe.src1Val+wb_next.pipe.src2Val==wb_cur.pipe.src2Val+Core.regFile[wb_cur.pipe.cmd.dst]){
+    		Core.regFile[wb_next.pipe.cmd.dst] = wb_cur.pipe.src1Val;
+    		if (exe_cur.cmd.src1==wb_next.pipe.cmd.dst)
+    			exe_cur.src1Val=wb_cur.pipe.src1Val;
+    		if (exe_cur.cmd.src2==wb_next.pipe.cmd.dst&&exe_cur.cmd.isSrc2Imm==false)
+    			exe_cur.src2Val=wb_cur.pipe.src1Val;
+    	}
+    	break;
     case 5:
 
 
